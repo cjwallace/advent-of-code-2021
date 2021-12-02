@@ -22,117 +22,120 @@ impl FromStr for Direction {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, PartialEq)]
 struct Submarine {
     horizontal: i32,
     depth: i32,
     aim: i32,
 }
 
-fn parse_instructions(input: &str) -> Vec<(Direction, i32)> {
-    input.lines().map(|line| parse_line(line)).collect()
+#[derive(Debug, PartialEq)]
+struct Instruction {
+    direction: Direction,
+    n: i32,
 }
 
-fn parse_line(line: &str) -> (Direction, i32) {
+fn parse_instructions(input: &str) -> Vec<Instruction> {
+    input.lines().map(|line| parse_instruction(line)).collect()
+}
+
+fn parse_instruction(line: &str) -> Instruction {
     let mut iter = line.splitn(2, ' ');
-    let direction = iter.next().unwrap();
-    let value = iter.next().unwrap();
+    let direction = Direction::from_str(iter.next().unwrap()).unwrap();
+    let n = iter.next().unwrap().parse::<i32>().unwrap();
 
-    (
-        Direction::from_str(direction).unwrap(),
-        value.parse::<i32>().unwrap(),
-    )
+    Instruction { direction, n }
 }
 
-fn part_one(instructions: &[(Direction, i32)], mut location: Submarine) -> Submarine {
-    instructions
-        .iter()
-        .for_each(|(direction, value)| match direction {
-            Direction::Forward => {
-                location.horizontal += value;
-            }
-            Direction::Down => {
-                location.depth += value;
-            }
-            Direction::Up => {
-                location.depth -= value;
-                if location.depth < 0 {
-                    location.depth = 0
-                }
-            }
-        });
+fn part_one(instructions: &Vec<Instruction>) -> Submarine {
+    // Could take a Submarine as an argument and parse into a tuple
+    // for easy manipulation, if we wanted to start from an arbitrary point
+    let (horizontal, depth, aim) =
+        instructions
+            .iter()
+            .fold((0, 0, 0), |(h, d, a), i| match i.direction {
+                Direction::Forward => (h + i.n, d, a),
+                Direction::Up => (h, d - i.n, a),
+                Direction::Down => (h, d + i.n, a),
+            });
 
-    location
+    Submarine {
+        horizontal,
+        depth,
+        aim,
+    }
 }
 
-fn part_two(instructions: &[(Direction, i32)], mut location: Submarine) -> Submarine {
-    instructions
-        .iter()
-        .for_each(|(direction, value)| match direction {
-            Direction::Forward => {
-                location.horizontal += value;
-                location.depth += value * location.aim;
-            }
-            Direction::Down => {
-                location.aim += value;
-            }
-            Direction::Up => {
-                location.aim -= value;
-            }
-        });
+fn part_two(instructions: &Vec<Instruction>) -> Submarine {
+    // Exactly as part_one, with different rules applied in the match
+    let (horizontal, depth, aim) =
+        instructions
+            .iter()
+            .fold((0, 0, 0), |(h, d, a), i| match i.direction {
+                Direction::Forward => (h + i.n, d + a * i.n, a),
+                Direction::Up => (h, d, a - i.n),
+                Direction::Down => (h, d, a + i.n),
+            });
 
-    location
-}
-
-fn print_answer(location: Submarine) {
-    println!(
-        "horizontal: {}\ndepth: {}\nproduct: {}",
-        location.horizontal,
-        location.depth,
-        location.horizontal * location.depth
-    );
+    Submarine {
+        horizontal,
+        depth,
+        aim,
+    }
 }
 
 fn main() {
-    let submarine = Submarine {
-        horizontal: 0,
-        depth: 0,
-        aim: 0,
-    };
-
     let instructions = parse_instructions(INPUT);
-    let first_submarine = part_one(&instructions, submarine);
-    println!("Part one:");
-    print_answer(first_submarine);
-
-    println!("\nPart two:");
-    let second_submarine = part_two(&instructions, submarine);
-    print_answer(second_submarine);
+    let first_submarine = part_one(&instructions);
+    println!(
+        "Part one:\n\t submarine state: {:?}\n\t horizontal * depth: {}",
+        first_submarine,
+        first_submarine.horizontal * first_submarine.depth
+    );
+    let second_submarine = part_two(&instructions);
+    println!(
+        "Part two:\n\t submarine state: {:?}\n\t horizontal * depth: {}",
+        second_submarine,
+        second_submarine.horizontal * second_submarine.depth
+    );
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_instructions, parse_line, part_one, part_two, Direction, Submarine};
+    use super::*;
 
     const SAMPLE: &str = include_str!("../data/test.txt");
 
     #[test]
     fn test_parse_line() {
-        assert_eq!(parse_line("forward 3"), (Direction::Forward, 3i32));
-        assert_eq!(parse_line("up 7"), (Direction::Up, 7i32));
-        assert_eq!(parse_line("down 0"), (Direction::Down, 0i32));
+        assert_eq!(
+            parse_instruction("forward 3"),
+            Instruction {
+                direction: Direction::Forward,
+                n: 3i32
+            }
+        );
+        assert_eq!(
+            parse_instruction("up 7"),
+            Instruction {
+                direction: Direction::Up,
+                n: 7i32
+            }
+        );
+        assert_eq!(
+            parse_instruction("down 0"),
+            Instruction {
+                direction: Direction::Down,
+                n: 0i32
+            }
+        );
     }
 
     #[test]
     fn test_part_one() {
-        let submarine = Submarine {
-            horizontal: 0,
-            depth: 0,
-            aim: 0,
-        };
         let instructions = parse_instructions(SAMPLE);
         assert_eq!(
-            part_one(&instructions, submarine),
+            part_one(&instructions),
             Submarine {
                 horizontal: 15,
                 depth: 10,
@@ -143,14 +146,9 @@ mod tests {
 
     #[test]
     fn test_part_two() {
-        let submarine = Submarine {
-            horizontal: 0,
-            depth: 0,
-            aim: 0,
-        };
         let instructions = parse_instructions(SAMPLE);
         assert_eq!(
-            part_two(&instructions, submarine),
+            part_two(&instructions),
             Submarine {
                 horizontal: 15,
                 depth: 60,
