@@ -22,14 +22,18 @@ impl FromStr for Direction {
     }
 }
 
-struct Coordinates {
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Submarine {
     horizontal: i32,
     depth: i32,
     aim: i32,
 }
 
+fn parse_instructions(input: &str) -> Vec<(Direction, i32)> {
+    input.lines().map(|line| parse_line(line)).collect()
+}
+
 fn parse_line(line: &str) -> (Direction, i32) {
-    // let (direction, value) = line.split_at(line.find(' ').unwrap());
     let mut iter = line.splitn(2, ' ');
     let direction = iter.next().unwrap();
     let value = iter.next().unwrap();
@@ -40,16 +44,9 @@ fn parse_line(line: &str) -> (Direction, i32) {
     )
 }
 
-fn part_one(input_str: &str) -> i32 {
-    let mut location = Coordinates {
-        horizontal: 0,
-        depth: 0,
-        aim: 0,
-    };
-
-    input_str
-        .lines()
-        .map(|line| parse_line(line))
+fn part_one(instructions: &[(Direction, i32)], mut location: Submarine) -> Submarine {
+    instructions
+        .iter()
         .for_each(|(direction, value)| match direction {
             Direction::Forward => {
                 location.horizontal += value;
@@ -65,26 +62,12 @@ fn part_one(input_str: &str) -> i32 {
             }
         });
 
-    println!(
-        "horizontal: {}\ndepth: {}\nproduct: {}",
-        location.horizontal,
-        location.depth,
-        location.horizontal * location.depth
-    );
-
-    return location.horizontal * location.depth;
+    location
 }
 
-fn part_two(input_str: &str) -> i32 {
-    let mut location = Coordinates {
-        horizontal: 0,
-        depth: 0,
-        aim: 0,
-    };
-
-    input_str
-        .lines()
-        .map(|line| parse_line(line))
+fn part_two(instructions: &[(Direction, i32)], mut location: Submarine) -> Submarine {
+    instructions
+        .iter()
         .for_each(|(direction, value)| match direction {
             Direction::Forward => {
                 location.horizontal += value;
@@ -98,24 +81,38 @@ fn part_two(input_str: &str) -> i32 {
             }
         });
 
+    location
+}
+
+fn print_answer(location: Submarine) {
     println!(
         "horizontal: {}\ndepth: {}\nproduct: {}",
         location.horizontal,
         location.depth,
         location.horizontal * location.depth
     );
-
-    return location.horizontal * location.depth;
 }
 
 fn main() {
-    part_one(INPUT);
-    part_two(INPUT);
+    let submarine = Submarine {
+        horizontal: 0,
+        depth: 0,
+        aim: 0,
+    };
+
+    let instructions = parse_instructions(INPUT);
+    let first_submarine = part_one(&instructions, submarine);
+    println!("Part one:");
+    print_answer(first_submarine);
+
+    println!("\nPart two:");
+    let second_submarine = part_two(&instructions, submarine);
+    print_answer(second_submarine);
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_line, part_one, part_two, Direction};
+    use super::{parse_instructions, parse_line, part_one, part_two, Direction, Submarine};
 
     const SAMPLE: &str = include_str!("../data/test.txt");
 
@@ -128,13 +125,37 @@ mod tests {
 
     #[test]
     fn test_part_one() {
-        assert_eq!(part_one(SAMPLE), 150);
-        assert_eq!(part_one("down 2"), 0);
-        assert_eq!(part_one("forward 1\ndown 1"), 1);
+        let submarine = Submarine {
+            horizontal: 0,
+            depth: 0,
+            aim: 0,
+        };
+        let instructions = parse_instructions(SAMPLE);
+        assert_eq!(
+            part_one(&instructions, submarine),
+            Submarine {
+                horizontal: 15,
+                depth: 10,
+                aim: 0
+            }
+        );
     }
 
     #[test]
     fn test_part_two() {
-        assert_eq!(part_two(SAMPLE), 900)
+        let submarine = Submarine {
+            horizontal: 0,
+            depth: 0,
+            aim: 0,
+        };
+        let instructions = parse_instructions(SAMPLE);
+        assert_eq!(
+            part_two(&instructions, submarine),
+            Submarine {
+                horizontal: 15,
+                depth: 60,
+                aim: 10
+            }
+        )
     }
 }
