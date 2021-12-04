@@ -2,10 +2,11 @@ use itertools::Itertools;
 
 const INPUT: &str = include_str!("../data/input.txt");
 
-#[derive(Debug)]
-struct Bitcounts {
-    ones: usize,
-    zeros: usize,
+fn parse_lines(input: &str) -> Vec<Vec<bool>> {
+    input
+        .lines()
+        .map(|line| line.chars().map(|c| c == '1').collect())
+        .collect()
 }
 
 fn power_consumption(input: &Vec<Vec<bool>>) -> usize {
@@ -16,72 +17,63 @@ fn power_consumption(input: &Vec<Vec<bool>>) -> usize {
 
     let epsilon: Vec<bool> = gamma.iter().map(|x| !x).collect();
 
-    bitvector_to_usize(gamma) * bitvector_to_usize(epsilon)
+    bitvector_to_usize(&gamma) * bitvector_to_usize(&epsilon)
 }
 
-fn bitvector_to_usize(v: Vec<bool>) -> usize {
+fn bitvector_to_usize(v: &Vec<bool>) -> usize {
     usize::from_str_radix(v.iter().map(|&el| el as usize).join("").as_str(), 2).unwrap()
 }
 
-fn count_bits_in_column(input: &Vec<&str>, column: usize) -> Bitcounts {
-    let bits = input.iter().map(|line| line.chars().nth(column).unwrap());
+fn oxygen_winner(ones: usize, zeros: usize) -> bool {
+    ones >= zeros
+}
 
-    let ones = bits.filter(|&c| c == '1').count();
+fn co2_winner(ones: usize, zeros: usize) -> bool {
+    ones < zeros
+}
+
+fn count_bits_in_column(input: &Vec<Vec<bool>>, column: usize) -> (usize, usize) {
+    let ones = input
+        .iter()
+        .map(|line| line[column])
+        .filter(|&bit| bit)
+        .count();
     let zeros = input.len() - ones;
-    Bitcounts { ones, zeros }
+    (ones, zeros)
 }
 
-fn oxygen_winner(bitcounts: Bitcounts) -> char {
-    if bitcounts.ones >= bitcounts.zeros {
-        '1'
-    } else {
-        '0'
-    }
-}
-
-fn co2_winner(bitcounts: Bitcounts) -> char {
-    if bitcounts.ones >= bitcounts.zeros {
-        '0'
-    } else {
-        '1'
-    }
-}
-
-fn safety_rating(input: &Vec<&str>, winner: &dyn Fn(Bitcounts) -> char) -> usize {
+fn safety_rating(input: &Vec<Vec<bool>>, winner: &dyn Fn(usize, usize) -> bool) -> usize {
     let n_columns = input[0].len();
 
     let mut lines = input.clone();
 
     for col in 0..n_columns {
-        let bitcounts = count_bits_in_column(&lines, col);
-        let winner = winner(bitcounts);
+        let (ones, zeros) = count_bits_in_column(&lines, col);
+        let winner = winner(ones, zeros);
 
         lines = lines
             .into_iter()
-            .filter(|&line| line.chars().nth(col).unwrap() == winner)
+            .filter(|line| line[col] == winner)
             .collect();
         if lines.len() == 1 {
             break;
         }
     }
-    usize::from_str_radix(&lines[0], 2).unwrap()
+
+    bitvector_to_usize(&lines[0])
 }
 
-fn life_support_rating(input: &str) -> usize {
-    let lines: Vec<&str> = input.lines().collect();
+fn life_support_rating(lines: &Vec<Vec<bool>>) -> usize {
     let oxygen_generator_rating = safety_rating(&lines, &oxygen_winner);
     let co2_scrubber_rating = safety_rating(&lines, &co2_winner);
     oxygen_generator_rating * co2_scrubber_rating
 }
 
 fn main() {
-    let lines: Vec<Vec<bool>> = INPUT
-        .lines()
-        .map(|line| line.chars().map(|c| c == '1').collect())
-        .collect();
+    let lines = parse_lines(INPUT);
 
     println!("power consumption: {}", power_consumption(&lines));
-    println!("life support rating: {}", life_support_rating(INPUT));
+    println!("life support rating: {}", life_support_rating(&lines));
 }
 
 #[cfg(test)]
@@ -92,15 +84,13 @@ mod test {
 
     #[test]
     fn test_power_consumption() {
-        let lines: Vec<Vec<bool>> = SAMPLE
-            .lines()
-            .map(|line| line.chars().map(|c| c == '1').collect())
-            .collect();
+        let lines = parse_lines(SAMPLE);
         assert_eq!(power_consumption(&lines), 198)
     }
 
     #[test]
     fn test_life_support_rating() {
-        assert_eq!(life_support_rating(SAMPLE), 230)
+        let lines = parse_lines(SAMPLE);
+        assert_eq!(life_support_rating(&lines), 230)
     }
 }
