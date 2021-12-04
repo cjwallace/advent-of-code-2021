@@ -8,41 +8,19 @@ struct Bitcounts {
     zeros: usize,
 }
 
-fn power_consumption(input: &str) -> usize {
-    let lines: Vec<&str> = input.lines().collect();
-    let counts = count_bits(&lines);
-    let gamma_rate = power_rate(&counts, &gamma_winner);
-    let epsilon_rate = power_rate(&counts, &epsilon_winner);
-    gamma_rate * epsilon_rate
+fn power_consumption(input: &Vec<Vec<bool>>) -> usize {
+    let gamma: Vec<bool> = (0..input[0].len())
+        .map(|col| input.iter().filter(|row| row[col]).count())
+        .map(|ones| ones > input.len() / 2)
+        .collect();
+
+    let epsilon: Vec<bool> = gamma.iter().map(|x| !x).collect();
+
+    bitvector_to_usize(gamma) * bitvector_to_usize(epsilon)
 }
 
-fn gamma_winner(bitcount: &Bitcounts) -> usize {
-    if bitcount.ones > bitcount.zeros {
-        1
-    } else {
-        0
-    }
-}
-
-fn epsilon_winner(bitcount: &Bitcounts) -> usize {
-    if bitcount.ones > bitcount.zeros {
-        0
-    } else {
-        1
-    }
-}
-
-fn power_rate(counts: &Vec<Bitcounts>, winner: &dyn Fn(&Bitcounts) -> usize) -> usize {
-    let binary = counts.iter().map(|column| winner(column)).join("");
-    usize::from_str_radix(&binary, 2).unwrap()
-}
-
-fn count_bits(input: &Vec<&str>) -> Vec<Bitcounts> {
-    let n_columns = input[0].len();
-
-    (0..n_columns)
-        .map(|col| count_bits_in_column(&input, col))
-        .collect()
+fn bitvector_to_usize(v: Vec<bool>) -> usize {
+    usize::from_str_radix(v.iter().map(|&el| el as usize).join("").as_str(), 2).unwrap()
 }
 
 fn count_bits_in_column(input: &Vec<&str>, column: usize) -> Bitcounts {
@@ -97,7 +75,12 @@ fn life_support_rating(input: &str) -> usize {
 }
 
 fn main() {
-    println!("power consumption: {}", power_consumption(INPUT));
+    let lines: Vec<Vec<bool>> = INPUT
+        .lines()
+        .map(|line| line.chars().map(|c| c == '1').collect())
+        .collect();
+
+    println!("power consumption: {}", power_consumption(&lines));
     println!("life support rating: {}", life_support_rating(INPUT));
 }
 
@@ -109,7 +92,11 @@ mod test {
 
     #[test]
     fn test_power_consumption() {
-        assert_eq!(power_consumption(SAMPLE), 198)
+        let lines: Vec<Vec<bool>> = SAMPLE
+            .lines()
+            .map(|line| line.chars().map(|c| c == '1').collect())
+            .collect();
+        assert_eq!(power_consumption(&lines), 198)
     }
 
     #[test]
