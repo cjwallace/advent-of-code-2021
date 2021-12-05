@@ -1,44 +1,62 @@
-use ndarray::{Array3, Axis};
+use ndarray::{Array3, ArrayView2, Axis};
 use regex::Regex;
 
-const INPUT: &str = include_str!("../data/test.txt");
+const INPUT: &str = include_str!("../data/input.txt");
+const BOARD_SIZE: usize = 5;
 
-fn get_scores(input: &str) -> Vec<i32> {
+fn parse_input(input: &str) -> (Vec<&str>, ndarray::Array3<&str>) {
     let mut split = input.splitn(2, "\n\n");
     let numbers: Vec<&str> = split.next().unwrap().split(',').collect();
-    let grids: &str = split.next().unwrap();
+    let boards: &str = split.next().unwrap();
 
     let num: Regex = Regex::new(r"\d+").unwrap();
-    let flat: Vec<&str> = num.find_iter(grids).map(|x| x.as_str()).collect();
+    let flat_boards: Vec<&str> = num.find_iter(boards).map(|x| x.as_str()).collect();
 
-    let grid_size = 5;
+    let shape = (
+        &flat_boards.len() / (BOARD_SIZE * BOARD_SIZE),
+        BOARD_SIZE,
+        BOARD_SIZE,
+    );
 
-    let shape = (&flat.len() / (grid_size * grid_size), grid_size, grid_size);
+    // stack all boards into single 3d array
+    let arr = Array3::from_shape_vec(shape, flat_boards).unwrap();
 
-    let mut arr = Array3::from_shape_vec(shape, flat).unwrap();
-    let mut scores: Vec<i32> = Vec::new();
+    (numbers, arr)
+}
 
-    for n in numbers {
-        arr.mapv_inplace(|a| if a == n { "x" } else { a });
+fn check_columns(board: &ArrayView2<&str>) -> bool {
+    board
+        .columns()
+        .into_iter()
+        .any(|col| col.iter().all(|&c| c == "x"))
+}
 
-        let winners = arr
+fn check_rows(board: &ArrayView2<&str>) -> bool {
+    board
+        .rows()
+        .into_iter()
+        .any(|row| row.iter().all(|&r| r == "x"))
+}
+
+fn compute_scores(input: &str) -> Vec<i32> {
+    let (draws, mut boards) = parse_input(input);
+
+    let mut all_scores: Vec<i32> = Vec::new();
+
+    for d in draws {
+        // mark by replacing with 'x'
+        boards.mapv_inplace(|a| if a == d { "x" } else { a });
+
+        let winners = boards
             .outer_iter()
             .enumerate()
-            .filter(|(_, grid)| {
-                (grid
-                    .columns()
-                    .into_iter()
-                    .any(|col| col.iter().all(|&c| c == "x")))
-                    || (grid
-                        .rows()
-                        .into_iter()
-                        .any(|row| row.iter().all(|&r| r == "x")))
-            })
+            .filter(|(_, board)| check_rows(board) || check_columns(board))
             .collect::<Vec<_>>();
 
-        let (mut win_indices, win_grids): (Vec<_>, Vec<_>) = winners.into_iter().unzip();
+        let (mut winning_board_indices, winning_boards): (Vec<_>, Vec<_>) =
+            winners.into_iter().unzip();
 
-        let points: Vec<i32> = win_grids
+        let scores: Vec<i32> = winning_boards
             .iter()
             .map(|winner| {
                 winner
@@ -47,34 +65,37 @@ fn get_scores(input: &str) -> Vec<i32> {
                     .map(|&x| x.parse::<i32>().unwrap())
                     .fold(0, |a, b| a + b)
             })
-            .map(|x| x * n.parse::<i32>().unwrap())
+            .map(|x| x * d.parse::<i32>().unwrap())
             .collect();
-        scores.extend(points);
 
-        win_indices.sort_by(|a, b| b.cmp(a));
+        all_scores.extend(scores);
 
-        for idx in win_indices {
-            arr.remove_index(Axis(0), idx);
+        // remove boards that have won
+        winning_board_indices.sort_by(|a, b| b.cmp(a));
+
+        for idx in winning_board_indices {
+            boards.remove_index(Axis(0), idx);
         }
     }
-    scores
+
+    all_scores
 }
 
 fn main() {
-    let scores = get_scores(INPUT);
+    let scores = compute_scores(INPUT);
     println!("first winner score: {}", scores.first().unwrap());
     println!("final winner score: {}", scores.last().unwrap());
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::get_scores;
+    use crate::compute_scores;
 
     const SAMPLE: &str = include_str!("../data/test.txt");
 
     #[test]
     fn test_get_scores() {
-        let scores = get_scores(SAMPLE);
+        let scores = compute_scores(SAMPLE);
         assert_eq!(scores.first().unwrap(), &4512i32);
         assert_eq!(scores.last().unwrap(), &1924i32);
     }
