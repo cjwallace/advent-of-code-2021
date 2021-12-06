@@ -10,14 +10,12 @@ fn shoal_size(input: &str, n_days: u64) -> u64 {
     represent shoal as vector of number of fish at
     index days until reproduction
     */
-    let mut shoal = vec![0; 9];
+    let mut shoal = [0; 9];
     input_fish.iter().for_each(|&x| shoal[x as usize] += 1);
 
     for _ in 0..n_days {
-        let n_new_fish = shoal[0];
         shoal.rotate_left(1);
         shoal[6] += shoal[8];
-        shoal[8] = n_new_fish;
     }
 
     let shoal_size: u64 = shoal.iter().sum();
